@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Kirana - Owner</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #eef2f3; }
+        .order-card { background: white; padding: 20px; margin: 15px 0; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-left: 10px solid #ffc107; }
+        .order-card.ready { border-left-color: #28a745; background: #f0fff4; }
+        .btn-ready { background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>📦 Incoming Orders (Live)</h1>
+    <div id="orderList">Connecting to Kirana Database...</div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+        import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBXNNub5WpC4iNLyltbCfOztlMFsqMQqUY",
+            authDomain: "kirana-4f9a2.firebaseapp.com",
+            databaseURL: "https://kirana-4f9a2-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "kirana-4f9a2",
+            storageBucket: "kirana-4f9a2.firebasestorage.app",
+            appId: "1:786377704874:web:efbafb4b8a08e0cf0c57d3"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        onValue(ref(db, 'orders'), (snapshot) => {
+            const orders = snapshot.val();
+            const container = document.getElementById('orderList');
+            container.innerHTML = orders ? '' : 'No orders yet.';
+            
+            for (let id in orders) {
+                const order = orders[id];
+                const card = document.createElement('div');
+                card.className = `order-card ${order.status === 'READY' ? 'ready' : ''}`;
+                card.innerHTML = `
+                    <h3>Order: ${order.items}</h3>
+                    <p>Status: <strong>${order.status}</strong></p>
+                    <p><small>Time: ${new Date(order.timestamp).toLocaleTimeString()}</small></p>
+                    ${order.status === 'NEW' ? `<button onclick="window.markReady('${id}')" class="btn-ready">Mark as Ready</button>` : '✅ Packed'}
+                `;
+                container.prepend(card); // Newest orders at the top
+            }
+        });
+
+        window.markReady = (id) => {
+            update(ref(db, `orders/${id}`), { status: 'READY' });
+        };
+    </script>
+</body>
+</html>
