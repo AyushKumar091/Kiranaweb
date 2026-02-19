@@ -35,65 +35,55 @@
     <h1 style="text-align:center;">📋 PACKING LISTS</h1>
     <div id="orderList">Waiting for orders...</div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
-        import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+onValue(ref(db, 'orders'), (snapshot) => {
+    const orders = snapshot.val();
+    const container = document.getElementById('orderList');
+    container.innerHTML = orders ? '' : '<p style="text-align:center;">No Pending Orders.</p>';
+    
+    const sortedKeys = Object.keys(orders || {}).reverse();
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyBXNNub5WpC4iNLyltbCfOztlMFsqMQqUY",
-            authDomain: "kirana-4f9a2.firebaseapp.com",
-            databaseURL: "https://kirana-4f9a2-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "kirana-4f9a2",
-            storageBucket: "kirana-4f9a2.firebasestorage.app",
-            appId: "1:786377704874:web:efbafb4b8a08e0cf0c57d3"
-        };
+    sortedKeys.forEach(id => {
+        const order = orders[id];
+        if(order.status === 'READY') return;
 
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+        const card = document.createElement('div');
+        card.className = 'order-card';
+        
+        // SMART SPLIT: This regex splits the text whenever it sees a number 
+        // or separators like commas/and
+        const items = order.itemList.split(/(\d+)|,| and | aur /).filter(i => i && i.trim().length > 0);
 
-        onValue(ref(db, 'orders'), (snapshot) => {
-            const orders = snapshot.val();
-            const container = document.getElementById('orderList');
-            container.innerHTML = orders ? '' : '<p style="text-align:center;">No Pending Orders.</p>';
-            
-            const sortedKeys = Object.keys(orders || {}).reverse();
+        let itemsHTML = "";
+        let currentItem = "";
 
-            sortedKeys.forEach(id => {
-                const order = orders[id];
-                if(order.status === 'READY') return; // Hide already packed orders
-
-                const card = document.createElement('div');
-                card.className = 'order-card';
-                
-                // Split order items by commas or "and" to create the list
-                const items = order.itemList.split(/,| and /).filter(i => i.trim().length > 0);
-
-                let itemsHTML = "";
-                items.forEach(item => {
-                    itemsHTML += `
-                        <div class="item-row">
-                            <input type="checkbox" class="checkbox">
-                            <span>${item.trim()}</span>
-                        </div>
-                    `;
-                });
-
-                card.innerHTML = `
-                    <div class="customer-header">
-                        <span class="status-badge">NEW ORDER</span>
-                        <strong>ORDER #${id.slice(-4)}</strong><br>
-                        <small>${new Date(order.timestamp).toLocaleTimeString()}</small>
-                    </div>
-                    ${itemsHTML}
-                    <button class="btn-ready" onclick="window.markAsReady('${id}')">MARK AS PACKED ✅</button>
-                `;
-                container.appendChild(card);
-            });
+        // Re-grouping numbers with their items for a clean look
+        items.forEach((part, index) => {
+            if (/^\d+$/.test(part)) { // If the part is a number
+                if (currentItem) {
+                    itemsHTML += `<div class="item-row"><input type="checkbox" class="checkbox"><span>${currentItem.trim()}</span></div>`;
+                }
+                currentItem = part; // Start new item with this number
+            } else {
+                currentItem += " " + part;
+            }
         });
+        
+        // Add the last item
+        if (currentItem) {
+            itemsHTML += `<div class="item-row"><input type="checkbox" class="checkbox"><span>${currentItem.trim()}</span></div>`;
+        }
 
-        window.markAsReady = (id) => {
-            update(ref(db, `orders/${id}`), { status: 'READY' });
-        };
-    </script>
+        card.innerHTML = `
+            <div class="customer-header">
+                <span class="status-badge">NEW ORDER</span>
+                <strong>ORDER #${id.slice(-4)}</strong><br>
+                <small>${new Date(order.timestamp).toLocaleTimeString()}</small>
+            </div>
+            ${itemsHTML}
+            <button class="btn-ready" onclick="window.markAsReady('${id}')">MARK AS PACKED ✅</button>
+        `;
+        container.appendChild(card);
+    });
+});
 </body>
 </html>
