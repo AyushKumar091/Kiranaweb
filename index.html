@@ -4,96 +4,116 @@
     <title>Kirana - Customer</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 20px; background: #f0f2f5; }
+        body { font-family: 'Segoe UI', sans-serif; text-align: center; padding: 20px; background: #f0f2f5; }
         .container { max-width: 400px; margin: auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        #micBtn { width: 90px; height: 90px; border-radius: 50%; border: none; background: #28a745; color: white; font-size: 35px; cursor: pointer; transition: 0.3s; }
-        #micBtn.recording { background: #dc3545; box-shadow: 0 0 20px rgba(220, 53, 69, 0.5); animation: pulse 1.5s infinite; }
+        #micBtn { width: 80px; height: 80px; border-radius: 50%; border: none; background: #28a745; color: white; font-size: 30px; cursor: pointer; }
+        #micBtn.recording { background: #dc3545; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
-        #preview { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 10px; min-height: 50px; background: #fafafa; font-size: 18px; }
-        #status { color: #666; font-size: 14px; margin-bottom: 15px; font-weight: bold; }
-        .send-btn { width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; display: none; }
+        
+        /* List Styling */
+        #orderContainer { margin: 20px 0; text-align: left; background: #fafafa; border: 1px solid #ddd; border-radius: 10px; padding: 15px; min-height: 100px; }
+        .item-entry { padding: 8px 0; border-bottom: 1px solid #eee; font-size: 18px; display: flex; align-items: center; }
+        .item-entry:last-child { border-bottom: none; }
+        .dot { color: #28a745; margin-right: 10px; font-weight: bold; }
+
+        #status { color: #666; font-size: 14px; margin-bottom: 15px; }
+        .send-btn { width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; display: none; margin-top: 10px; }
+        .clear-btn { background: none; border: none; color: #dc3545; cursor: pointer; font-size: 12px; margin-top: 10px; text-decoration: underline; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>🛍️ Kirana Order</h2>
-        <div id="status">Tap the Mic & Speak Loudly</div>
+        <h2>🛒 My Shopping List</h2>
+        <div id="status">Tap mic to add an item</div>
         <button id="micBtn">🎤</button>
-        <div id="preview">Your list will appear here...</div>
-        <button id="sendBtn" class="send-btn">🚀 HIT TO SEND ORDER</button>
+        
+        <div id="orderContainer">
+            <div id="placeholder" style="color:#aaa; text-align:center;">Your items will appear here...</div>
+        </div>
+
+        <button id="sendBtn" class="send-btn">🚀 PLACE ORDER NOW</button>
+        <button id="clearBtn" class="clear-btn" style="display:none;">Clear List & Start Over</button>
     </div>
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
-    import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+        import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyBXNNub5WpC4iNLyltbCfOztlMFsqMQqUY",
-        authDomain: "kirana-4f9a2.firebaseapp.com",
-        databaseURL: "https://kirana-4f9a2-default-rtdb.asia-southeast1.firebasedatabase.app",
-        projectId: "kirana-4f9a2",
-        storageBucket: "kirana-4f9a2.firebasestorage.app",
-        appId: "1:786377704874:web:efbafb4b8a08e0cf0c57d3"
-    };
+        // Your Firebase config (Keep your existing one)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBXNNub5WpC4iNLyltbCfOztlMFsqMQqUY",
+            authDomain: "kirana-4f9a2.firebaseapp.com",
+            databaseURL: "https://kirana-4f9a2-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "kirana-4f9a2",
+            storageBucket: "kirana-4f9a2.firebasestorage.app",
+            appId: "1:786377704874:web:efbafb4b8a08e0cf0c57d3"
+        };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
 
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang = 'hi-IN';
-    recognition.continuous = true; // KEEP LISTENING FOR THE FULL LIST
-    recognition.interimResults = true;
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.lang = 'hi-IN';
+        recognition.interimResults = false;
 
-    const micBtn = document.getElementById('micBtn');
-    const preview = document.getElementById('preview');
-    const sendBtn = document.getElementById('sendBtn');
-    const status = document.getElementById('status');
+        const micBtn = document.getElementById('micBtn');
+        const orderContainer = document.getElementById('orderContainer');
+        const sendBtn = document.getElementById('sendBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const status = document.getElementById('status');
+        const placeholder = document.getElementById('placeholder');
 
-    let fullTranscript = "";
+        let itemsArray = [];
 
-    micBtn.onclick = () => {
-        if (micBtn.classList.contains('recording')) {
-            recognition.stop();
-        } else {
-            fullTranscript = ""; // Reset for new order
-            recognition.start();
-            micBtn.classList.add('recording');
-            status.innerText = "Listening... Speak your whole list!";
-        }
-    };
+        micBtn.onclick = () => {
+            try {
+                recognition.start();
+                micBtn.classList.add('recording');
+                status.innerText = "Listening for item...";
+            } catch(e) { recognition.stop(); }
+        };
 
-    recognition.onresult = (event) => {
-        let interimTranscript = "";
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-            if (event.results[i].isFinal) {
-                fullTranscript += event.results[i][0].transcript + ", ";
-            } else {
-                interimTranscript += event.results[i][0].transcript;
+        recognition.onresult = (event) => {
+            const text = event.results[0][0].transcript;
+            if(text.trim().length > 0) {
+                addItemToList(text);
             }
+        };
+
+        function addItemToList(text) {
+            placeholder.style.display = "none";
+            itemsArray.push(text);
+            
+            const div = document.createElement('div');
+            div.className = 'item-entry';
+            div.innerHTML = `<span class="dot">•</span> <span>${text}</span>`;
+            orderContainer.appendChild(div);
+            
+            sendBtn.style.display = "block";
+            clearBtn.style.display = "inline-block";
+            status.innerText = "Item added! Add more or Send.";
         }
-        // Show the user what is being recorded
-        preview.innerText = fullTranscript + interimTranscript;
-        sendBtn.style.display = "block";
-    };
 
-    recognition.onend = () => {
-        micBtn.classList.remove('recording');
-        status.innerText = "Mic Off. Review your list and Send!";
-    };
+        recognition.onend = () => {
+            micBtn.classList.remove('recording');
+        };
 
-    sendBtn.onclick = () => {
-        status.innerText = "Sending order...";
-        push(ref(db, 'orders'), {
-            customerName: "Customer-" + Math.floor(Math.random() * 1000), // Random ID
-            itemList: preview.innerText,
-            status: 'NEW',
-            timestamp: Date.now()
-        }).then(() => {
-            alert("Whole List Sent to Shop!");
-            location.reload();
-        });
-    };
-</script>
-    <p style="margin-top:50px;"><a href="Owner.html" style="color:#ccc; text-decoration:none; font-size:10px;">Owner Login</a></p>
+        clearBtn.onclick = () => { location.reload(); };
+
+        sendBtn.onclick = () => {
+            status.innerText = "Sending to shop...";
+            // Join array with a separator the Owner Page understands
+            const finalString = itemsArray.join(', ');
+            
+            push(ref(db, 'orders'), {
+                itemList: finalString,
+                status: 'NEW',
+                timestamp: Date.now()
+            }).then(() => {
+                alert("Order Placed Successfully!");
+                location.reload();
+            });
+        };
+    </script>
 </body>
 </html>
