@@ -1,21 +1,27 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Kirana - Owner</title>
+    <title>Owner Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #eef2f3; }
         .order-card { background: white; padding: 20px; margin: 15px auto; max-width: 500px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-left: 10px solid #ffc107; }
-        .item-row { display: flex; align-items: flex-start; padding: 10px 0; border-bottom: 1px dashed #eee; font-size: 20px; }
+        .item-row { display: flex; align-items: flex-start; padding: 8px 0; border-bottom: 1px dashed #eee; font-size: 18px; }
         .bullet { color: #28a745; margin-right: 12px; font-weight: bold; }
-        .btn-ready { width: 100%; margin-top: 15px; padding: 12px; background: #28a745; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn-group { display: flex; gap: 10px; margin-top: 15px; }
+        .btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; }
+        .btn-accept { background: #007bff; }
+        .btn-packed { background: #28a745; }
     </style>
 </head>
 <body>
-    <h1 style="text-align:center;">📋 Live Orders</h1>
+    <h1 style="text-align:center;">📋 Shop Dashboard</h1>
     <div id="orderList">Connecting...</div>
 
     <script type="module">
+        const pin = prompt("Enter Shop PIN:");
+        if (pin !== "1234") { alert("Access Denied"); window.location.href = "index.html"; }
+
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
         import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
 
@@ -35,35 +41,33 @@
             const container = document.getElementById('orderList');
             container.innerHTML = "";
             const orders = snapshot.val();
-            if(!orders) { container.innerHTML = "Waiting for orders..."; return; }
+            if(!orders) { container.innerHTML = "No orders yet."; return; }
 
             Object.keys(orders).reverse().forEach(id => {
                 const order = orders[id];
-                if(order.status === 'READY') return;
+                const items = order.itemList.split('|');
+                let itemsHTML = items.map(i => `<div class="item-row"><span class="bullet">•</span>${i}</div>`).join('');
 
                 const card = document.createElement('div');
                 card.className = 'order-card';
-                
-                // SPLIT FIX: Creates the vertical list from the pipe symbol
-                const items = order.itemList.split('|');
-                let itemsHTML = "";
-                items.forEach(item => {
-                    itemsHTML += `<div class="item-row"><span class="bullet">•</span><span>${item}</span></div>`;
-                });
-
                 card.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding-bottom:10px;">
-                        <strong>Order #${id.slice(-4)}</strong>
-                        <small>${new Date(order.timestamp).toLocaleTimeString()}</small>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                        <strong>ID: ${id.slice(-5)}</strong>
+                        <span style="font-size:12px; color:blue;">Status: ${order.status}</span>
                     </div>
-                    <div>${itemsHTML}</div>
-                    <button class="btn-ready" onclick="window.markAsReady('${id}')">MARK AS PACKED ✅</button>
+                    ${itemsHTML}
+                    <div class="btn-group">
+                        <button class="btn btn-accept" onclick="window.updateStatus('${id}', 'ACCEPTED')">Accept</button>
+                        <button class="btn btn-packed" onclick="window.updateStatus('${id}', 'READY')">Packed</button>
+                    </div>
                 `;
                 container.appendChild(card);
             });
         });
 
-        window.markAsReady = (id) => { update(ref(db, `orders/${id}`), { status: 'READY' }); };
+        window.updateStatus = (id, newStatus) => {
+            update(ref(db, `orders/${id}`), { status: newStatus });
+        };
     </script>
 </body>
 </html>

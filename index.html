@@ -1,81 +1,23 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Kirana - My Shopping List</title>
+    <title>Kirana Portal</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body { font-family: 'Segoe UI', sans-serif; text-align: center; padding: 20px; background: #f0f2f5; }
-        .container { max-width: 450px; margin: auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        #micBtn { width: 80px; height: 80px; border-radius: 50%; border: none; background: #28a745; color: white; font-size: 30px; cursor: pointer; margin: 15px; }
-        #micBtn.recording { background: #dc3545; animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
-        #orderDisplay { text-align: left; background: #fafafa; border: 1px solid #ddd; border-radius: 10px; padding: 15px; margin: 20px 0; min-height: 80px; }
-        .item-row { padding: 10px 0; border-bottom: 1px solid #eee; display: flex; align-items: center; font-size: 18px; }
-        .bullet { color: #28a745; margin-right: 12px; font-weight: bold; }
-        .send-btn { width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; display: none; }
+        body { font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f0f2f5; }
+        .box { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; max-width: 300px; }
+        .btn { display: block; width: 100%; padding: 15px; margin: 15px 0; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer; text-decoration: none; transition: 0.3s; box-sizing: border-box; }
+        .cust { background: #007bff; color: white; }
+        .own { background: #28a745; color: white; }
+        .btn:hover { opacity: 0.8; transform: translateY(-2px); }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>🛍️ My Shopping List</h2>
-        <p id="status">Tap mic to add items one by one</p>
-        <button id="micBtn">🎤</button>
-        <div id="orderDisplay"><div id="emptyMsg" style="color:#999; text-align:center;">Add your first item...</div></div>
-        <button id="sendBtn" class="send-btn">🚀 PLACE FINAL ORDER</button>
+    <div class="box">
+        <h2>🛍️ Kirana Shop</h2>
+        <p>Who are you?</p>
+        <a href="customer.html" class="btn cust">I am a Customer</a>
+        <a href="Owner.html" class="btn own">I am the Owner</a>
     </div>
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
-        import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyBXNNub5WpC4iNLyltbCfOztlMFsqMQqUY",
-            authDomain: "kirana-4f9a2.firebaseapp.com",
-            databaseURL: "https://kirana-4f9a2-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "kirana-4f9a2",
-            storageBucket: "kirana-4f9a2.firebasestorage.app",
-            appId: "1:786377704874:web:efbafb4b8a08e0cf0c57d3"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-
-        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-        recognition.lang = 'hi-IN';
-        
-        let itemsArray = [];
-        const micBtn = document.getElementById('micBtn');
-        const display = document.getElementById('orderDisplay');
-        const sendBtn = document.getElementById('sendBtn');
-
-        micBtn.onclick = () => {
-            try {
-                recognition.start();
-                micBtn.classList.add('recording');
-            } catch(e) { recognition.stop(); }
-        };
-
-        recognition.onresult = (event) => {
-            const text = event.results[0][0].transcript.trim();
-            if(text) {
-                document.getElementById('emptyMsg').style.display = "none";
-                itemsArray.push(text);
-                const row = document.createElement('div');
-                row.className = 'item-row';
-                row.innerHTML = `<span class="bullet">•</span> ${text}`;
-                display.appendChild(row);
-                sendBtn.style.display = "block";
-            }
-        };
-
-        recognition.onend = () => micBtn.classList.remove('recording');
-        
-        sendBtn.onclick = () => {
-            // CRITICAL: Connect items with '|' for the owner side
-            const finalString = itemsArray.join('|');
-            push(ref(db, 'orders'), { itemList: finalString, status: 'NEW', timestamp: Date.now() })
-            .then(() => { alert("Order Sent!"); location.reload(); });
-        };
-    </script>
 </body>
 </html>
