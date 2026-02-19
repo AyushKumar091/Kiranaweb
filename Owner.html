@@ -1,21 +1,43 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Kirana - Owner</title>
+    <title>Kirana - Owner Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body { font-family: sans-serif; padding: 20px; background: #eef2f3; }
-        .order-card { background: white; padding: 20px; margin: 15px 0; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-left: 10px solid #ffc107; }
-        .order-card.ready { border-left-color: #28a745; background: #f0fff4; }
-        .btn-ready { background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #eef2f3; }
+        .order-card { 
+            background: white; 
+            padding: 20px; 
+            margin: 15px 0; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+            border-left: 10px solid #ffc107; 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .order-card.ready { border-left-color: #28a745; background: #f0fff4; opacity: 0.8; }
+        .btn-ready { 
+            background: #28a745; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-weight: bold; 
+        }
+        .btn-delete { background: #dc3545; margin-left: 10px; }
+        h1 { color: #333; text-align: center; }
+        #orderList { max-width: 600px; margin: auto; }
     </style>
 </head>
 <body>
-    <h1>📦 Incoming Orders (Live)</h1>
-    <div id="orderList">Connecting to Kirana Database...</div>
+    <h1>📦 Live Kirana Orders</h1>
+    <div id="orderList">Connecting to live database...</div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
-        import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+        import { getDatabase, ref, onValue, update, remove } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBXNNub5WpC4iNLyltbCfOztlMFsqMQqUY",
@@ -29,27 +51,48 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
+        // Listen for data in real-time
         onValue(ref(db, 'orders'), (snapshot) => {
             const orders = snapshot.val();
             const container = document.getElementById('orderList');
-            container.innerHTML = orders ? '' : 'No orders yet.';
+            container.innerHTML = orders ? '' : '<p style="text-align:center;">No orders yet. Waiting for customers...</p>';
             
-            for (let id in orders) {
+            // Sort orders: Newest at the top
+            const sortedKeys = Object.keys(orders || {}).reverse();
+
+            sortedKeys.forEach(id => {
                 const order = orders[id];
                 const card = document.createElement('div');
                 card.className = `order-card ${order.status === 'READY' ? 'ready' : ''}`;
+                
                 card.innerHTML = `
-                    <h3>Order: ${order.items}</h3>
-                    <p>Status: <strong>${order.status}</strong></p>
-                    <p><small>Time: ${new Date(order.timestamp).toLocaleTimeString()}</small></p>
-                    ${order.status === 'NEW' ? `<button onclick="window.markReady('${id}')" class="btn-ready">Mark as Ready</button>` : '✅ Packed'}
+                    <div>
+                        <h3 style="margin:0;">${order.items}</h3>
+                        <p style="margin:5px 0; color:#666; font-size:12px;">
+                            ${new Date(order.timestamp).toLocaleTimeString()}
+                        </p>
+                    </div>
+                    <div>
+                        ${order.status === 'NEW' ? 
+                            `<button class="btn-ready" onclick="window.markAsReady('${id}')">Pack Order</button>` : 
+                            `<span>✅ Packed</span>`
+                        }
+                        <button class="btn-ready btn-delete" onclick="window.deleteOrder('${id}')">🗑️</button>
+                    </div>
                 `;
-                container.prepend(card); // Newest orders at the top
-            }
+                container.appendChild(card);
+            });
         });
 
-        window.markReady = (id) => {
+        // Functions to update database
+        window.markAsReady = (id) => {
             update(ref(db, `orders/${id}`), { status: 'READY' });
+        };
+
+        window.deleteOrder = (id) => {
+            if(confirm("Clear this order?")) {
+                remove(ref(db, `orders/${id}`));
+            }
         };
     </script>
 </body>
