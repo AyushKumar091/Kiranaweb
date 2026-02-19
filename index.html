@@ -1,75 +1,112 @@
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
-    import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Kirana - Customer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 20px; background: #f0f2f5; }
+        .container { max-width: 400px; margin: auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        #micBtn { width: 90px; height: 90px; border-radius: 50%; border: none; background: #28a745; color: white; font-size: 35px; cursor: pointer; transition: 0.3s; }
+        #micBtn.recording { background: #dc3545; box-shadow: 0 0 20px rgba(220, 53, 69, 0.5); animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        #preview { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 10px; min-height: 50px; background: #fafafa; font-size: 18px; }
+        #status { color: #666; font-size: 14px; margin-bottom: 15px; font-weight: bold; }
+        .send-btn { width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🛍️ Kirana Order</h2>
+        <div id="status">Tap the Mic & Speak Loudly</div>
+        <button id="micBtn">🎤</button>
+        <div id="preview">Your list will appear here...</div>
+        <button id="sendBtn" class="send-btn">🚀 HIT TO SEND ORDER</button>
+    </div>
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyBXNNub5WpC4iNLyltbCfOztlMFsqMQqUY",
-        authDomain: "kirana-4f9a2.firebaseapp.com",
-        databaseURL: "https://kirana-4f9a2-default-rtdb.asia-southeast1.firebasedatabase.app",
-        projectId: "kirana-4f9a2",
-        storageBucket: "kirana-4f9a2.firebasestorage.app",
-        appId: "1:786377704874:web:efbafb4b8a08e0cf0c57d3"
-    };
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+        import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+        const firebaseConfig = {
+            apiKey: "AIzaSyBXNNub5WpC4iNLyltbCfOztlMFsqMQqUY",
+            authDomain: "kirana-4f9a2.firebaseapp.com",
+            databaseURL: "https://kirana-4f9a2-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "kirana-4f9a2",
+            storageBucket: "kirana-4f9a2.firebasestorage.app",
+            appId: "1:786377704874:web:efbafb4b8a08e0cf0c57d3"
+        };
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    
-    // Settings for better stability
-    recognition.lang = 'hi-IN';
-    recognition.continuous = false;
-    recognition.interimResults = false;
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
 
-    const micBtn = document.getElementById('micBtn');
-    const status = document.getElementById('status');
-    const preview = document.getElementById('preview');
-    const sendBtn = document.getElementById('sendBtn');
-
-    micBtn.onclick = () => {
-        try {
-            recognition.start();
-            micBtn.classList.add('recording');
-            status.innerText = "Listening...";
-        } catch (e) {
-            recognition.stop();
-            status.innerText = "Resetting... tap again.";
-        }
-    };
-
-    recognition.onresult = (event) => {
-        const text = event.results[0][0].transcript;
-        preview.innerText = text;
-        sendBtn.style.display = "block";
-        status.innerText = "Captured!";
-        micBtn.classList.remove('recording');
-    };
-
-    recognition.onerror = (event) => {
-        micBtn.classList.remove('recording');
-        console.error("Speech Error:", event.error);
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
         
-        if (event.error === 'network') {
-            status.innerText = "Network Error. Please use Chrome/Edge and check internet.";
-        } else if (event.error === 'not-allowed') {
-            status.innerText = "Permission Denied. Please allow Microphone access.";
-        } else {
-            status.innerText = "Error: " + event.error;
-        }
-    };
+        recognition.lang = 'hi-IN'; // Optimized for Hindi/English mix
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
 
-    sendBtn.onclick = () => {
-        status.innerText = "Sending...";
-        push(ref(db, 'orders'), {
-            items: preview.innerText,
-            status: 'NEW',
-            timestamp: Date.now()
-        }).then(() => {
-            alert("Order Sent!");
-            location.reload();
-        }).catch((err) => {
-            alert("Database Error: " + err.message);
-        });
-    };
-</script>
+        const micBtn = document.getElementById('micBtn');
+        const status = document.getElementById('status');
+        const preview = document.getElementById('preview');
+        const sendBtn = document.getElementById('sendBtn');
+
+        micBtn.onclick = () => {
+            try {
+                recognition.start();
+                micBtn.classList.add('recording');
+                status.innerText = "Listening... Speak now!";
+            } catch (e) {
+                recognition.stop();
+                micBtn.classList.remove('recording');
+                status.innerText = "Resetting mic... try again.";
+            }
+        };
+
+        // NEW: Detection indicator
+        recognition.onsoundstart = () => {
+            status.innerText = "I hear you! Keep talking...";
+            status.style.color = "#28a745";
+        };
+
+        recognition.onresult = (event) => {
+            const text = event.results[0][0].transcript;
+            preview.innerText = text;
+            sendBtn.style.display = "block";
+            status.innerText = "Captured Successfully!";
+            status.style.color = "#666";
+            micBtn.classList.remove('recording');
+        };
+
+        recognition.onerror = (event) => {
+            micBtn.classList.remove('recording');
+            status.style.color = "#dc3545";
+            if (event.error === 'no-speech') {
+                status.innerText = "Error: No sound detected. Speak louder!";
+            } else if (event.error === 'network') {
+                status.innerText = "Network Error. Switch to Chrome/Edge.";
+            } else {
+                status.innerText = "Error: " + event.error;
+            }
+        };
+
+        recognition.onend = () => {
+            micBtn.classList.remove('recording');
+        };
+
+        sendBtn.onclick = () => {
+            status.innerText = "Sending to shop...";
+            push(ref(db, 'orders'), {
+                items: preview.innerText,
+                status: 'NEW',
+                timestamp: Date.now()
+            }).then(() => {
+                alert("Order Sent to Gupta-Ji!");
+                location.reload();
+            }).catch((err) => {
+                alert("Database Error: Check your Firebase Rules.");
+            });
+        };
+    </script>
+</body>
+</html>
