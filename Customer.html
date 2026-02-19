@@ -1,29 +1,51 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Customer - Place Order</title>
+    <title>My Orders - Kirana</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body { font-family: 'Segoe UI', sans-serif; text-align: center; padding: 20px; background: #f0f2f5; }
-        .container { max-width: 450px; margin: auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        #micBtn { width: 80px; height: 80px; border-radius: 50%; border: none; background: #28a745; color: white; font-size: 30px; cursor: pointer; margin: 15px; }
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f0f2f5; color: #333; }
+        .container { max-width: 500px; margin: auto; }
+        
+        /* Ordering Section */
+        .order-box { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center; margin-bottom: 30px; }
+        #micBtn { width: 70px; height: 70px; border-radius: 50%; border: none; background: #28a745; color: white; font-size: 25px; cursor: pointer; }
         #micBtn.recording { background: #dc3545; animation: pulse 1s infinite; }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
-        #orderDisplay { text-align: left; background: #fafafa; border: 1px solid #ddd; border-radius: 10px; padding: 15px; margin: 20px 0; min-height: 80px; }
-        .item-row { padding: 10px 0; border-bottom: 1px solid #eee; display: flex; align-items: center; font-size: 18px; }
-        .bullet { color: #28a745; margin-right: 12px; font-weight: bold; }
-        #statusNote { margin-top: 20px; padding: 15px; border-radius: 10px; background: #e7f3ff; color: #0056b3; font-weight: bold; display: none; }
-        .send-btn { width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; display: none; }
+        
+        /* History Section */
+        .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .history-card { background: white; padding: 15px; border-radius: 10px; margin-bottom: 12px; border-left: 6px solid #ccc; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .status-PENDING { border-color: #6c757d; }
+        .status-ACCEPTED { border-color: #ffc107; animation: blink 2s infinite; }
+        .status-READY { border-color: #28a745; background: #f8fff9; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+        
+        .status-badge { float: right; font-size: 11px; padding: 4px 8px; border-radius: 20px; color: white; font-weight: bold; text-transform: uppercase; }
+        .bg-PENDING { background: #6c757d; }
+        .bg-ACCEPTED { background: #007bff; }
+        .bg-READY { background: #28a745; }
+        
+        #currentItems { text-align: left; background: #f9f9f9; padding: 10px; border-radius: 8px; margin: 15px 0; min-height: 40px; font-size: 15px; }
+        .send-btn { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; display: none; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>🛒 My Shopping List</h2>
-        <p id="status">Tap mic to add items</p>
-        <button id="micBtn">🎤</button>
-        <div id="orderDisplay"><div id="emptyMsg" style="color:#999; text-align:center;">Your list is empty</div></div>
-        <button id="sendBtn" class="send-btn">🚀 PLACE ORDER</button>
-        <div id="statusNote"></div>
+        <div class="order-box">
+            <h3>🎤 Record New Order</h3>
+            <button id="micBtn">🎤</button>
+            <div id="currentItems"><span style="color:#aaa">Speak items to build list...</span></div>
+            <button id="sendBtn" class="send-btn">PLACE ORDER NOW</button>
+        </div>
+
+        <div class="history-header">
+            <h3 style="margin:0;">📜 Your Orders</h3>
+            <button onclick="localStorage.clear(); location.reload();" style="font-size:10px; background:none; border:none; color:red; cursor:pointer;">Clear All</button>
+        </div>
+        <div id="historyList">
+            <p style="text-align:center; color:#999;">No previous orders yet.</p>
+        </div>
     </div>
 
     <script type="module">
@@ -44,52 +66,82 @@
 
         const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
         recognition.lang = 'hi-IN';
-        
-        let itemsArray = [];
+
+        let currentSessionItems = [];
         const micBtn = document.getElementById('micBtn');
-        const display = document.getElementById('orderDisplay');
+        const currentItemsDiv = document.getElementById('currentItems');
         const sendBtn = document.getElementById('sendBtn');
-        const statusNote = document.getElementById('statusNote');
+        const historyList = document.getElementById('historyList');
 
+        // --- ORDERING LOGIC ---
         micBtn.onclick = () => { try { recognition.start(); micBtn.classList.add('recording'); } catch(e) { recognition.stop(); } };
-
+        
         recognition.onresult = (event) => {
             const text = event.results[0][0].transcript.trim();
             if(text) {
-                document.getElementById('emptyMsg').style.display = "none";
-                itemsArray.push(text);
-                const row = document.createElement('div');
-                row.className = 'item-row';
-                row.innerHTML = `<span class="bullet">•</span> ${text}`;
-                display.appendChild(row);
+                if(currentSessionItems.length === 0) currentItemsDiv.innerHTML = "";
+                currentSessionItems.push(text);
+                currentItemsDiv.innerHTML += `<div style="padding:4px 0;">• ${text}</div>`;
                 sendBtn.style.display = "block";
             }
         };
-
         recognition.onend = () => micBtn.classList.remove('recording');
-        
+
         sendBtn.onclick = () => {
-            const finalString = itemsArray.join('|');
-            const newOrderRef = push(ref(db, 'orders'), { itemList: finalString, status: 'PENDING', timestamp: Date.now() });
-            const orderId = newOrderRef.key;
-            
-            sendBtn.style.display = "none";
-            micBtn.style.display = "none";
-            statusNote.style.display = "block";
-            statusNote.innerText = "⏳ Waiting for Shopkeeper to accept...";
-            
-            // Watch ONLY this order
-            onValue(ref(db, `orders/${orderId}`), (snapshot) => {
-                const data = snapshot.val();
-                if(data.status === 'ACCEPTED') {
-                    statusNote.innerText = "🔔 Order Accepted! Packing started...";
-                    statusNote.style.background = "#fff3cd";
-                } else if(data.status === 'READY') {
-                    statusNote.innerText = "✅ Order is PACKED! Come pick it up.";
-                    statusNote.style.background = "#d4edda";
-                }
+            const finalString = currentSessionItems.join('|');
+            const newOrderRef = push(ref(db, 'orders'), { 
+                itemList: finalString, 
+                status: 'PENDING', 
+                timestamp: Date.now() 
             });
+
+            // SAVE TO LOCAL STORAGE
+            const orderId = newOrderRef.key;
+            let myHistory = JSON.parse(localStorage.getItem('myOrders') || "[]");
+            myHistory.push(orderId);
+            localStorage.setItem('myOrders', JSON.stringify(myHistory));
+
+            // Reset current UI
+            currentSessionItems = [];
+            currentItemsDiv.innerHTML = '<span style="color:#aaa">Order Sent! Record another?</span>';
+            sendBtn.style.display = "none";
+            loadHistory(); // Refresh the list
         };
+
+        // --- HISTORY LOGIC ---
+        function loadHistory() {
+            const myHistory = JSON.parse(localStorage.getItem('myOrders') || "[]");
+            if(myHistory.length === 0) return;
+            
+            historyList.innerHTML = ""; // Clear existing UI
+            
+            myHistory.reverse().forEach(id => {
+                onValue(ref(db, `orders/${id}`), (snapshot) => {
+                    const data = snapshot.val();
+                    if(!data) return;
+
+                    // Update or create the specific card for this order
+                    let card = document.getElementById(`card-${id}`);
+                    if(!card) {
+                        card = document.createElement('div');
+                        card.id = `card-${id}`;
+                        historyList.appendChild(card);
+                    }
+
+                    const itemsHtml = data.itemList.split('|').map(i => `<div>- ${i}</div>`).join('');
+                    const time = new Date(data.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    
+                    card.className = `history-card status-${data.status}`;
+                    card.innerHTML = `
+                        <span class="status-badge bg-${data.status}">${data.status}</span>
+                        <strong>Order #${id.slice(-4)}</strong> <small style="color:#888;">at ${time}</small>
+                        <div style="margin-top:8px; font-size:14px; color:#555;">${itemsHtml}</div>
+                    `;
+                });
+            });
+        }
+
+        window.onload = loadHistory; // Load history when page opens
     </script>
 </body>
 </html>
