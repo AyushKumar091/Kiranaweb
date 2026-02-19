@@ -1,147 +1,254 @@
 <!DOCTYPE html>
 <html>
-<head>
+
+<>
     <title>My Orders - Kirana</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f0f2f5; color: #333; }
-        .container { max-width: 500px; margin: auto; }
-        
-        /* Ordering Section */
-        .order-box { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center; margin-bottom: 30px; }
-        #micBtn { width: 70px; height: 70px; border-radius: 50%; border: none; background: #28a745; color: white; font-size: 25px; cursor: pointer; }
-        #micBtn.recording { background: #dc3545; animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
-        
-        /* History Section */
-        .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .history-card { background: white; padding: 15px; border-radius: 10px; margin-bottom: 12px; border-left: 6px solid #ccc; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .status-PENDING { border-color: #6c757d; }
-        .status-ACCEPTED { border-color: #ffc107; animation: blink 2s infinite; }
-        .status-READY { border-color: #28a745; background: #f8fff9; }
-        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
-        
-        .status-badge { float: right; font-size: 11px; padding: 4px 8px; border-radius: 20px; color: white; font-weight: bold; text-transform: uppercase; }
-        .bg-PENDING { background: #6c757d; }
-        .bg-ACCEPTED { background: #007bff; }
-        .bg-READY { background: #28a745; }
-        
-        #currentItems { text-align: left; background: #f9f9f9; padding: 10px; border-radius: 8px; margin: 15px 0; min-height: 40px; font-size: 15px; }
-        .send-btn { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; display: none; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="order-box">
-            <h3>🎤 Record New Order</h3>
-            <button id="micBtn">🎤</button>
-            <div id="currentItems"><span style="color:#aaa">Speak items to build list...</span></div>
-            <button id="sendBtn" class="send-btn">PLACE ORDER NOW</button>
-        </div>
-
-        <div class="history-header">
-            <h3 style="margin:0;">📜 Your Orders</h3>
-            <button onclick="localStorage.clear(); location.reload();" style="font-size:10px; background:none; border:none; color:red; cursor:pointer;">Clear All</button>
-        </div>
-        <div id="historyList">
-            <p style="text-align:center; color:#999;">No previous orders yet.</p>
-        </div>
-    </div>
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
-        import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyBXNNub5WpC4iNLyltbCfOztlMFsqMQqUY",
-            authDomain: "kirana-4f9a2.firebaseapp.com",
-            databaseURL: "https://kirana-4f9a2-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "kirana-4f9a2",
-            storageBucket: "kirana-4f9a2.firebasestorage.app",
-            appId: "1:786377704874:web:efbafb4b8a08e0cf0c57d3"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-
-        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-        recognition.lang = 'hi-IN';
-
-        let currentSessionItems = [];
-        const micBtn = document.getElementById('micBtn');
-        const currentItemsDiv = document.getElementById('currentItems');
-        const sendBtn = document.getElementById('sendBtn');
-        const historyList = document.getElementById('historyList');
-
-        // --- ORDERING LOGIC ---
-        micBtn.onclick = () => { try { recognition.start(); micBtn.classList.add('recording'); } catch(e) { recognition.stop(); } };
-        
-        recognition.onresult = (event) => {
-            const text = event.results[0][0].transcript.trim();
-            if(text) {
-                if(currentSessionItems.length === 0) currentItemsDiv.innerHTML = "";
-                currentSessionItems.push(text);
-                currentItemsDiv.innerHTML += `<div style="padding:4px 0;">• ${text}</div>`;
-                sendBtn.style.display = "block";
-            }
-        };
-        recognition.onend = () => micBtn.classList.remove('recording');
-
-        sendBtn.onclick = () => {
-            const finalString = currentSessionItems.join('|');
-            const newOrderRef = push(ref(db, 'orders'), { 
-                itemList: finalString, 
-                status: 'PENDING', 
-                timestamp: Date.now() 
-            });
-
-            // SAVE TO LOCAL STORAGE
-            const orderId = newOrderRef.key;
-            let myHistory = JSON.parse(localStorage.getItem('myOrders') || "[]");
-            myHistory.push(orderId);
-            localStorage.setItem('myOrders', JSON.stringify(myHistory));
-
-            // Reset current UI
-            currentSessionItems = [];
-            currentItemsDiv.innerHTML = '<span style="color:#aaa">Order Sent! Record another?</span>';
-            sendBtn.style.display = "none";
-            loadHistory(); // Refresh the list
-        };
-
-        // --- HISTORY LOGIC ---
-        function loadHistory() {
-            const myHistory = JSON.parse(localStorage.getItem('myOrders') || "[]");
-            if(myHistory.length === 0) return;
-            
-            historyList.innerHTML = ""; // Clear existing UI
-            
-            myHistory.reverse().forEach(id => {
-                onValue(ref(db, `orders/${id}`), (snapshot) => {
-                    const data = snapshot.val();
-                    if(!data) return;
-
-                    // Update or create the specific card for this order
-                    let card = document.getElementById(`card-${id}`);
-                    if(!card) {
-                        card = document.createElement('div');
-                        card.id = `card-${id}`;
-                        historyList.appendChild(card);
-                    }
-
-                    const itemsHtml = data.itemList.split('|').map(i => `<div>- ${i}</div>`).join('');
-                    const time = new Date(data.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                    
-                    card.className = `history-card status-${data.status}`;
-                    card.innerHTML = `
-                        <span class="status-badge bg-${data.status}">${data.status}</span>
-                        <strong>Order #${id.slice(-4)}</strong> <small style="color:#888;">at ${time}</small>
-                        <div style="margin-top:8px; font-size:14px; color:#555;">${itemsHtml}</div>
-                    `;
-                });
-            });
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            padding: 20px;
+            background: #f0f2f5;
+            color: #333;
         }
 
-        window.onload = loadHistory; // Load history when page opens
-    </script>
-</body>
+        .container {
+            max-width: 500px;
+            margin: auto;
+        }
+
+        .order-box {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        #micBtn {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            border: none;
+            background: #28a745;
+            color: white;
+            font-size:
+                25px;
+            cursor: pointer;
+        }
+
+        #micBtn.recording {
+            background: #dc3545;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.1);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        /* NEW: Item list with delete buttons */
+        .current-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fff;
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        .remove-btn {
+            background: #ff4d4d;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* History Section */
+        .history-card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            border-left: 6px solid #ccc;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            text-align: left;
+        }
+
+        .status-badge {
+            float: right;
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 20px;
+            color: white;
+            font-weight:
+                bold;
+            text-transform: uppercase;
+        }
+
+        .bg-PENDING {
+            background: #6c757d;
+        }
+
+        .bg-ACCEPTED {
+            background: #007bff;
+        }
+
+        .bg-READY {
+            background: #28a745;
+        }
+
+        .send-btn {
+            width: 100%;
+            padding: 12px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            display: none;
+        }
+    </style>
+    </head>
+
+    <body>
+        <div class="container">
+            <div class="order-box">
+                <h3>🎤 Record New Order</h3>
+                <button id="micBtn">🎤</button>
+                <div id="currentItems"><span style="color:#aaa">Speak items to build list...</span></div>
+                <button id="sendBtn" class="send-btn">PLACE ORDER NOW</button>
+            </div>
+
+            <div class="history-header">
+                <h3 style="margin:0;">📜 Your Orders</h3>
+                <button onclick="localStorage.clear(); location.reload();"
+                    style="font-size:10px; background:none; border:none; color:red; cursor:pointer;">Clear All</button>
+            </div>
+            <div id="historyList">
+                <p style="text-align:center; color:#999;">No previous orders yet.</p>
+            </div>
+        </div>
+
+        <script type="module">
+            import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+            import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+
+            // YOUR FIREBASE CONFIG
+            const firebaseConfig = {
+                apiKey: "AIzaSyBXNNub5WpC4iNLyltbCfOztlMFsqMQqUY",
+                authDomain: "kirana-4f9a2.firebaseapp.com",
+                databaseURL: "https://kirana-4f9a2-default-rtdb.asia-southeast1.firebasedatabase.app",
+                projectId: "kirana-4f9a2",
+                storageBucket: "kirana-4f9a2.firebasestorage.app",
+                appId: "1:786377704874:web:efbafb4b8a08e0cf0c57d3"
+            };
+
+            const app = initializeApp(firebaseConfig);
+            const db = getDatabase(app);
+
+            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.lang = 'hi-IN';
+
+            let currentSessionItems = [];
+            const micBtn = document.getElementById('micBtn');
+            const currentItemsDiv = document.getElementById('currentItems');
+            const sendBtn = document.getElementById('sendBtn');
+            const historyList = document.getElementById('historyList');
+
+            // --- 1. MICROPHONE LOGIC ---
+            micBtn.onclick = () => { try { recognition.start(); micBtn.classList.add('recording'); } catch (e) { recognition.stop(); } };
+
+            recognition.onresult = (event) => {
+                const text = event.results[0][0].transcript.trim();
+                if (text) {
+                    const itemId = Date.now(); // Unique ID for delete function
+                    addItemToCurrentList(itemId, text);
+                }
+            };
+            recognition.onend = () => micBtn.classList.remove('recording');
+
+            // --- 2. ADD & REMOVE ITEMS ---
+            function addItemToCurrentList(id, text) {
+                if (currentSessionItems.length === 0) currentItemsDiv.innerHTML = "";
+                currentSessionItems.push({ id: id, name: text });
+
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'current-item';
+                itemDiv.id = `item-${id}`;
+                itemDiv.innerHTML = `<span>• ${text}</span><button class="remove-btn" onclick="window.removeItem(${id})">✕</button>`;
+                currentItemsDiv.appendChild(itemDiv);
+                sendBtn.style.display = "block";
+            }
+
+            window.removeItem = (id) => {
+                currentSessionItems = currentSessionItems.filter(item => item.id !== id);
+                document.getElementById(`item-${id}`).remove();
+                if (currentSessionItems.length === 0) {
+                    currentItemsDiv.innerHTML = '<span style="color:#aaa">List empty. Record items...</span>';
+                    sendBtn.style.display = "none";
+                }
+            };
+
+            // --- 3. SEND ORDER ---
+            sendBtn.onclick = () => {
+                const finalString = currentSessionItems.map(item => item.name).join('|');
+                const newOrderRef = push(ref(db, 'orders'), { itemList: finalString, status: 'PENDING', timestamp: Date.now() });
+
+                let myHistory = JSON.parse(localStorage.getItem('myOrders') || "[]");
+                myHistory.push(newOrderRef.key);
+                localStorage.setItem('myOrders', JSON.stringify(myHistory));
+
+                currentSessionItems = [];
+                currentItemsDiv.innerHTML = '<span style="color:#28a745">✅ Order placed!</span>';
+                sendBtn.style.display = "none";
+                loadHistory();
+            };
+
+            // --- 4. LOAD HISTORY ---
+            function loadHistory() {
+                const myHistory = JSON.parse(localStorage.getItem('myOrders') || "[]");
+                if (myHistory.length === 0) return;
+                historyList.innerHTML = "";
+                myHistory.forEach(id => {
+                    onValue(ref(db, `orders/${id}`), (snapshot) => {
+                        const data = snapshot.val();
+                        if (!data) return;
+                        let card = document.getElementById(`card-${id}`);
+                        if (!card) {
+                            card = document.createElement('div');
+                            card.id = `card-${id}`;
+                            historyList.prepend(card);
+                        }
+                        const itemsHtml = data.itemList.split('|').map(i => `<div>- ${i}</div>`).join('');
+                        card.className = `history-card status-${data.status}`;
+                        card.innerHTML = `<span class="status-badge bg-${data.status}">${data.status}</span><strong>#${id.slice(-4)}</strong><div style="font-size:14px; color:#555;">${itemsHtml}</div>`;
+                    });
+                });
+            }
+            window.onload = loadHistory;
+        </script>
+    </body>
+
 </html>
