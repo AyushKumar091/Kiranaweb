@@ -1,39 +1,71 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>Kirana - Owner Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #eef2f3; }
-        .order-card { 
-            background: white; 
-            padding: 20px; 
-            margin: 15px auto; 
-            max-width: 500px;
-            border-radius: 12px; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
-            border-left: 10px solid #ffc107; 
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            padding: 20px;
+            background: #eef2f3;
         }
-        .order-header { border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; }
-        
-        /* This creates the vertical list effect */
-        .item-list { margin: 15px 0; }
-        .item-row { 
-            display: flex; 
-            align-items: center; 
-            padding: 8px 0; 
-            font-size: 19px; 
-            border-bottom: 1px dashed #f0f0f0; 
-        }
-        .item-row:last-child { border-bottom: none; }
-        .bullet { margin-right: 12px; color: #28a745; font-weight: bold; }
 
-        .btn-ready { 
-            width: 100%; background: #28a745; color: white; border: none; 
-            padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 16px;
+        .order-card {
+            background: white;
+            padding: 20px;
+            margin: 15px auto;
+            max-width: 500px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            border-left: 10px solid #ffc107;
+        }
+
+        .order-header {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* This creates the vertical list effect */
+        .item-list {
+            margin: 15px 0;
+        }
+
+        .item-row {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            font-size: 19px;
+            border-bottom: 1px dashed #f0f0f0;
+        }
+
+        .item-row:last-child {
+            border-bottom: none;
+        }
+
+        .bullet {
+            margin-right: 12px;
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .btn-ready {
+            width: 100%;
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
         }
     </style>
 </head>
+
 <body>
     <h1 style="text-align:center; color:#333;">📦 Live Orders</h1>
     <div id="orderList">Connecting...</div>
@@ -58,45 +90,43 @@
             const orders = snapshot.val();
             const container = document.getElementById('orderList');
             container.innerHTML = orders ? '' : '<p style="text-align:center;">No orders yet.</p>';
-            
+
             const sortedKeys = Object.keys(orders || {}).reverse();
 
             sortedKeys.forEach(id => {
                 const order = orders[id];
-                if(order.status === 'READY') return;
+                if (order.status === 'READY') return;
 
                 const card = document.createElement('div');
                 card.className = 'order-card';
-                
-                // FORCE VERTICAL LIST:
-                // Splits by numbers, commas, or common Hindi/English separators
-                const rawItems = order.itemList.split(/(\d+)|,| and | aur /).filter(i => i && i.trim().length > 0);
-                
-                let listHTML = "";
-                let currentItem = "";
 
-                rawItems.forEach((part) => {
-                    if (/^\d+$/.test(part)) { // If it's a number, it's a new item
-                        if (currentItem) {
-                            listHTML += `<div class="item-row"><span class="bullet">•</span><span>${currentItem.trim()}</span></div>`;
-                        }
-                        currentItem = part;
-                    } else {
-                        currentItem += " " + part;
+                // This is the FIX: Split the incoming data by the '|' symbol
+                const items = order.itemList.split('|');
+
+                let listHTML = "";
+                items.forEach(item => {
+                    if (item.trim().length > 0) {
+                        // This creates a separate vertical row for every item
+                        listHTML += `
+                    <div style="display:flex; align-items:flex-start; padding:10px 0; border-bottom:1px dashed #eee; font-size:20px;">
+                        <span style="color:#28a745; margin-right:12px; font-weight:bold;">•</span>
+                        <span style="flex:1;">${item.trim()}</span>
+                    </div>`;
                     }
                 });
-                if (currentItem) {
-                    listHTML += `<div class="item-row"><span class="bullet">•</span><span>${currentItem.trim()}</span></div>`;
-                }
 
                 card.innerHTML = `
-                    <div class="order-header">
-                        <strong>Order #${id.slice(-4)}</strong>
-                        <small style="color:#888;">${new Date(order.timestamp).toLocaleTimeString()}</small>
-                    </div>
-                    <div class="item-list">${listHTML}</div>
-                    <button class="btn-ready" onclick="window.markAsReady('${id}')">MARK AS PACKED ✅</button>
-                `;
+            <div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:10px;">
+                <strong>Order #${id.slice(-4)}</strong>
+                <small style="color:#888;">${new Date(order.timestamp).toLocaleTimeString()}</small>
+            </div>
+            <div class="item-list" style="display: block;">
+                ${listHTML}
+            </div>
+            <button class="btn-ready" onclick="window.markAsReady('${id}')" style="margin-top:15px; width:100%; padding:12px; background:#28a745; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">
+                MARK AS PACKED ✅
+            </button>
+        `;
                 container.appendChild(card);
             });
         });
@@ -106,4 +136,5 @@
         };
     </script>
 </body>
+
 </html>
