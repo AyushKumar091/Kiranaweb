@@ -1,92 +1,75 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Kirana - Customer</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 20px; background: #f0f2f5; }
-        .container { max-width: 400px; margin: auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        #micBtn { width: 90px; height: 90px; border-radius: 50%; border: none; background: #28a745; color: white; font-size: 35px; cursor: pointer; transition: 0.3s; }
-        #micBtn.recording { background: #dc3545; box-shadow: 0 0 15px #dc3545; }
-        #preview { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 10px; min-height: 50px; background: #fafafa; }
-        #status { color: #666; font-size: 14px; margin-bottom: 15px; }
-        .send-btn { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; display: none; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>🛍️ Kirana Order</h2>
-        <div id="status">Tap the Mic to Start</div>
-        <button id="micBtn">🎤</button>
-        <div id="preview">Your list will appear here...</div>
-        <button id="sendBtn" class="send-btn">🚀 HIT TO SEND ORDER</button>
-    </div>
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+    import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
-        import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+    const firebaseConfig = {
+        apiKey: "AIzaSyBXNNub5WpC4iNLyltbCfOztlMFsqMQqUY",
+        authDomain: "kirana-4f9a2.firebaseapp.com",
+        databaseURL: "https://kirana-4f9a2-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "kirana-4f9a2",
+        storageBucket: "kirana-4f9a2.firebasestorage.app",
+        appId: "1:786377704874:web:efbafb4b8a08e0cf0c57d3"
+    };
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyBXNNub5WpC4iNLyltbCfOztlMFsqMQqUY",
-            authDomain: "kirana-4f9a2.firebaseapp.com",
-            databaseURL: "https://kirana-4f9a2-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "kirana-4f9a2",
-            storageBucket: "kirana-4f9a2.firebasestorage.app",
-            appId: "1:786377704874:web:efbafb4b8a08e0cf0c57d3"
-        };
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    
+    // Settings for better stability
+    recognition.lang = 'hi-IN';
+    recognition.continuous = false;
+    recognition.interimResults = false;
 
-        // Check for browser support
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            alert("Your browser does not support Speech Recognition. Please use Google Chrome.");
-        }
+    const micBtn = document.getElementById('micBtn');
+    const status = document.getElementById('status');
+    const preview = document.getElementById('preview');
+    const sendBtn = document.getElementById('sendBtn');
 
-        const recognition = new SpeechRecognition();
-        recognition.lang = 'hi-IN';
-        recognition.interimResults = false;
-
-        const micBtn = document.getElementById('micBtn');
-        const status = document.getElementById('status');
-        const preview = document.getElementById('preview');
-        const sendBtn = document.getElementById('sendBtn');
-
-        micBtn.onclick = () => {
+    micBtn.onclick = () => {
+        try {
             recognition.start();
             micBtn.classList.add('recording');
-            status.innerText = "Listening for items...";
-        };
+            status.innerText = "Listening...";
+        } catch (e) {
+            recognition.stop();
+            status.innerText = "Resetting... tap again.";
+        }
+    };
 
-        recognition.onresult = (event) => {
-            const text = event.results[0][0].transcript;
-            preview.innerText = text;
-            sendBtn.style.display = "block";
-            status.innerText = "Ready to Send!";
-            micBtn.classList.remove('recording');
-        };
+    recognition.onresult = (event) => {
+        const text = event.results[0][0].transcript;
+        preview.innerText = text;
+        sendBtn.style.display = "block";
+        status.innerText = "Captured!";
+        micBtn.classList.remove('recording');
+    };
 
-        recognition.onerror = (event) => {
-            micBtn.classList.remove('recording');
-            if (event.error === 'network') {
-                status.innerText = "Network Error: Checking connection...";
-                alert("The browser's speech service had a network glitch. Please try again or switch to Chrome/Edge.");
-            } else {
-                status.innerText = "Error: " + event.error;
-            }
-        };
+    recognition.onerror = (event) => {
+        micBtn.classList.remove('recording');
+        console.error("Speech Error:", event.error);
+        
+        if (event.error === 'network') {
+            status.innerText = "Network Error. Please use Chrome/Edge and check internet.";
+        } else if (event.error === 'not-allowed') {
+            status.innerText = "Permission Denied. Please allow Microphone access.";
+        } else {
+            status.innerText = "Error: " + event.error;
+        }
+    };
 
-        sendBtn.onclick = () => {
-            push(ref(db, 'orders'), {
-                items: preview.innerText,
-                status: 'NEW',
-                timestamp: Date.now()
-            }).then(() => {
-                alert("Order Sent Successfully!");
-                location.reload();
-            });
-        };
-    </script>
-</body>
-</html>
+    sendBtn.onclick = () => {
+        status.innerText = "Sending...";
+        push(ref(db, 'orders'), {
+            items: preview.innerText,
+            status: 'NEW',
+            timestamp: Date.now()
+        }).then(() => {
+            alert("Order Sent!");
+            location.reload();
+        }).catch((err) => {
+            alert("Database Error: " + err.message);
+        });
+    };
+</script>
