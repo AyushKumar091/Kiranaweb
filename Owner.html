@@ -1,73 +1,18 @@
 <!DOCTYPE html>
 <html>
-
 <head>
-    <title>Kirana - Owner Dashboard</title>
+    <title>Kirana - Owner</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            padding: 20px;
-            background: #eef2f3;
-        }
-
-        .order-card {
-            background: white;
-            padding: 20px;
-            margin: 15px auto;
-            max-width: 500px;
-            border-radius: 12px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            border-left: 10px solid #ffc107;
-        }
-
-        .order-header {
-            border-bottom: 1px solid #eee;
-            padding-bottom: 10px;
-            margin-bottom: 15px;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        /* This creates the vertical list effect */
-        .item-list {
-            margin: 15px 0;
-        }
-
-        .item-row {
-            display: flex;
-            align-items: center;
-            padding: 8px 0;
-            font-size: 19px;
-            border-bottom: 1px dashed #f0f0f0;
-        }
-
-        .item-row:last-child {
-            border-bottom: none;
-        }
-
-        .bullet {
-            margin-right: 12px;
-            color: #28a745;
-            font-weight: bold;
-        }
-
-        .btn-ready {
-            width: 100%;
-            background: #28a745;
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 16px;
-        }
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #eef2f3; }
+        .order-card { background: white; padding: 20px; margin: 15px auto; max-width: 500px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-left: 10px solid #ffc107; }
+        .item-row { display: flex; align-items: flex-start; padding: 10px 0; border-bottom: 1px dashed #eee; font-size: 20px; }
+        .bullet { color: #28a745; margin-right: 12px; font-weight: bold; }
+        .btn-ready { width: 100%; margin-top: 15px; padding: 12px; background: #28a745; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
-
 <body>
-    <h1 style="text-align:center; color:#333;">📦 Live Orders</h1>
+    <h1 style="text-align:center;">📋 Live Orders</h1>
     <div id="orderList">Connecting...</div>
 
     <script type="module">
@@ -87,54 +32,38 @@
         const db = getDatabase(app);
 
         onValue(ref(db, 'orders'), (snapshot) => {
-            const orders = snapshot.val();
             const container = document.getElementById('orderList');
-            container.innerHTML = orders ? '' : '<p style="text-align:center;">No orders yet.</p>';
+            container.innerHTML = "";
+            const orders = snapshot.val();
+            if(!orders) { container.innerHTML = "Waiting for orders..."; return; }
 
-            const sortedKeys = Object.keys(orders || {}).reverse();
-
-            sortedKeys.forEach(id => {
+            Object.keys(orders).reverse().forEach(id => {
                 const order = orders[id];
-                if (order.status === 'READY') return;
+                if(order.status === 'READY') return;
 
                 const card = document.createElement('div');
                 card.className = 'order-card';
-
-                // This is the FIX: Split the incoming data by the '|' symbol
+                
+                // SPLIT FIX: Creates the vertical list from the pipe symbol
                 const items = order.itemList.split('|');
-
-                let listHTML = "";
+                let itemsHTML = "";
                 items.forEach(item => {
-                    if (item.trim().length > 0) {
-                        // This creates a separate vertical row for every item
-                        listHTML += `
-                    <div style="display:flex; align-items:flex-start; padding:10px 0; border-bottom:1px dashed #eee; font-size:20px;">
-                        <span style="color:#28a745; margin-right:12px; font-weight:bold;">•</span>
-                        <span style="flex:1;">${item.trim()}</span>
-                    </div>`;
-                    }
+                    itemsHTML += `<div class="item-row"><span class="bullet">•</span><span>${item}</span></div>`;
                 });
 
                 card.innerHTML = `
-            <div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:10px;">
-                <strong>Order #${id.slice(-4)}</strong>
-                <small style="color:#888;">${new Date(order.timestamp).toLocaleTimeString()}</small>
-            </div>
-            <div class="item-list" style="display: block;">
-                ${listHTML}
-            </div>
-            <button class="btn-ready" onclick="window.markAsReady('${id}')" style="margin-top:15px; width:100%; padding:12px; background:#28a745; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">
-                MARK AS PACKED ✅
-            </button>
-        `;
+                    <div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding-bottom:10px;">
+                        <strong>Order #${id.slice(-4)}</strong>
+                        <small>${new Date(order.timestamp).toLocaleTimeString()}</small>
+                    </div>
+                    <div>${itemsHTML}</div>
+                    <button class="btn-ready" onclick="window.markAsReady('${id}')">MARK AS PACKED ✅</button>
+                `;
                 container.appendChild(card);
             });
         });
 
-        window.markAsReady = (id) => {
-            update(ref(db, `orders/${id}`), { status: 'READY' });
-        };
+        window.markAsReady = (id) => { update(ref(db, `orders/${id}`), { status: 'READY' }); };
     </script>
 </body>
-
 </html>
