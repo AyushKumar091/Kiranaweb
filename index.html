@@ -35,85 +35,44 @@
         <button id="clearBtn" class="clear-btn" style="display:none;">Clear List & Start Over</button>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
-        import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+onValue(ref(db, 'orders'), (snapshot) => {
+    const orders = snapshot.val();
+    const container = document.getElementById('orderList');
+    container.innerHTML = orders ? '' : 'No orders.';
+    
+    const sortedKeys = Object.keys(orders || {}).reverse();
 
-        // Your Firebase config (Keep your existing one)
-        const firebaseConfig = {
-            apiKey: "AIzaSyBXNNub5WpC4iNLyltbCfOztlMFsqMQqUY",
-            authDomain: "kirana-4f9a2.firebaseapp.com",
-            databaseURL: "https://kirana-4f9a2-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "kirana-4f9a2",
-            storageBucket: "kirana-4f9a2.firebasestorage.app",
-            appId: "1:786377704874:web:efbafb4b8a08e0cf0c57d3"
-        };
+    sortedKeys.forEach(id => {
+        const order = orders[id];
+        if(order.status === 'READY') return;
 
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+        const card = document.createElement('div');
+        card.className = 'order-card';
+        
+        // SPLIT BY THE SPECIAL CHARACTER '|'
+        const items = order.itemList.split('|');
 
-        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-        recognition.lang = 'hi-IN';
-        recognition.interimResults = false;
-
-        const micBtn = document.getElementById('micBtn');
-        const orderContainer = document.getElementById('orderContainer');
-        const sendBtn = document.getElementById('sendBtn');
-        const clearBtn = document.getElementById('clearBtn');
-        const status = document.getElementById('status');
-        const placeholder = document.getElementById('placeholder');
-
-        let itemsArray = [];
-
-        micBtn.onclick = () => {
-            try {
-                recognition.start();
-                micBtn.classList.add('recording');
-                status.innerText = "Listening for item...";
-            } catch(e) { recognition.stop(); }
-        };
-
-        recognition.onresult = (event) => {
-            const text = event.results[0][0].transcript;
-            if(text.trim().length > 0) {
-                addItemToList(text);
+        let listHTML = "";
+        items.forEach(item => {
+            if(item.trim().length > 0) {
+                listHTML += `
+                    <div style="display:flex; align-items:center; padding:10px 0; border-bottom:1px dashed #eee; font-size:20px;">
+                        <span style="color:#28a745; margin-right:12px; font-weight:bold;">•</span>
+                        <span>${item.trim()}</span>
+                    </div>`;
             }
-        };
+        });
 
-        function addItemToList(text) {
-            placeholder.style.display = "none";
-            itemsArray.push(text);
-            
-            const div = document.createElement('div');
-            div.className = 'item-entry';
-            div.innerHTML = `<span class="dot">•</span> <span>${text}</span>`;
-            orderContainer.appendChild(div);
-            
-            sendBtn.style.display = "block";
-            clearBtn.style.display = "inline-block";
-            status.innerText = "Item added! Add more or Send.";
-        }
-
-        recognition.onend = () => {
-            micBtn.classList.remove('recording');
-        };
-
-        clearBtn.onclick = () => { location.reload(); };
-
-        sendBtn.onclick = () => {
-            status.innerText = "Sending to shop...";
-            // Join array with a separator the Owner Page understands
-            const finalString = itemsArray.join(', ');
-            
-            push(ref(db, 'orders'), {
-                itemList: finalString,
-                status: 'NEW',
-                timestamp: Date.now()
-            }).then(() => {
-                alert("Order Placed Successfully!");
-                location.reload();
-            });
-        };
-    </script>
+        card.innerHTML = `
+            <div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding-bottom:10px;">
+                <strong>Order #${id.slice(-4)}</strong>
+                <small>${new Date(order.timestamp).toLocaleTimeString()}</small>
+            </div>
+            <div style="margin:15px 0;">${listHTML}</div>
+            <button class="btn-ready" onclick="window.markAsReady('${id}')">MARK AS PACKED ✅</button>
+        `;
+        container.appendChild(card);
+    });
+});
 </body>
 </html>
