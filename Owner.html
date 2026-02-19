@@ -1,80 +1,99 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Kirana - Owner Dashboard</title>
+    <title>Kirana - Packing Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #eef2f3; }
+        body { font-family: 'Courier New', Courier, monospace; padding: 20px; background: #ddd; } /* Receipt-style font */
         .order-card { 
             background: white; 
-            padding: 20px; 
-            margin: 15px 0; 
-            border-radius: 12px; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
-            border-left: 10px solid #ffc107; 
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            padding: 25px; 
+            margin: 20px auto; 
+            max-width: 500px;
+            border-radius: 2px; 
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            position: relative;
         }
-        .order-card.ready { border-left-color: #28a745; background: #f0fff4; opacity: 0.8; }
-        .btn-ready { 
-            background: #28a745; 
-            color: white; 
-            border: none; 
-            padding: 10px 20px; 
-            border-radius: 6px; 
-            cursor: pointer; 
-            font-weight: bold; 
+        /* Jagged bottom effect like a real receipt */
+        .order-card::after {
+            content: ""; position: absolute; bottom: -10px; left: 0; width: 100%;
+            height: 10px; background: linear-gradient(-45deg, transparent 5px, white 5px), linear-gradient(45deg, transparent 5px, white 5px);
+            background-size: 10px 10px;
         }
-        .btn-delete { background: #dc3545; margin-left: 10px; }
-        h1 { color: #333; text-align: center; }
-        #orderList { max-width: 600px; margin: auto; }
+        .item-row { 
+            display: flex; align-items: center; 
+            padding: 10px 0; border-bottom: 1px dashed #ccc; font-size: 20px; 
+        }
+        .checkbox { width: 25px; height: 25px; margin-right: 15px; border: 2px solid #333; cursor: pointer; }
+        .customer-header { border-bottom: 2px solid #000; margin-bottom: 15px; padding-bottom: 10px; }
+        .status-badge { background: #000; color: #fff; padding: 5px 10px; font-size: 12px; float: right; }
+        .btn-ready { width: 100%; margin-top: 20px; padding: 15px; background: #28a745; color: white; border: none; font-weight: bold; cursor: pointer; }
+        @media print { .btn-ready, .checkbox { display: none; } } /* Hide buttons when printing for staff */
     </style>
 </head>
 <body>
-    <h1>📦 Live Kirana Orders</h1>
-    <div id="orderList">Connecting to live database...</div>
+    <h1 style="text-align:center;">📋 PACKING LISTS</h1>
+    <div id="orderList">Waiting for orders...</div>
 
-<script type="module">
-    // ... (Keep your Firebase Config and Imports the same as before) ...
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+        import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
 
-    onValue(ref(db, 'orders'), (snapshot) => {
-        const orders = snapshot.val();
-        const container = document.getElementById('orderList');
-        container.innerHTML = orders ? '' : 'No orders yet.';
-        
-        const sortedKeys = Object.keys(orders || {}).reverse();
+        const firebaseConfig = {
+            apiKey: "AIzaSyBXNNub5WpC4iNLyltbCfOztlMFsqMQqUY",
+            authDomain: "kirana-4f9a2.firebaseapp.com",
+            databaseURL: "https://kirana-4f9a2-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "kirana-4f9a2",
+            storageBucket: "kirana-4f9a2.firebasestorage.app",
+            appId: "1:786377704874:web:efbafb4b8a08e0cf0c57d3"
+        };
 
-        sortedKeys.forEach(id => {
-            const order = orders[id];
-            const card = document.createElement('div');
-            card.className = `order-card ${order.status === 'READY' ? 'ready' : ''}`;
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        onValue(ref(db, 'orders'), (snapshot) => {
+            const orders = snapshot.val();
+            const container = document.getElementById('orderList');
+            container.innerHTML = orders ? '' : '<p style="text-align:center;">No Pending Orders.</p>';
             
-            // Format the list to look cleaner
-            const itemsDisplay = order.itemList.split(',').filter(i => i.trim() !== '').join('<br>• ');
+            const sortedKeys = Object.keys(orders || {}).reverse();
 
-            card.innerHTML = `
-                <div style="flex:1;">
-                    <h4 style="margin:0; color:#007bff;">OrderID: ${id.slice(-5)}</h4>
-                    <div style="font-size:18px; margin:10px 0; line-height:1.5;">
-                        <strong>Items:</strong><br>• ${itemsDisplay}
+            sortedKeys.forEach(id => {
+                const order = orders[id];
+                if(order.status === 'READY') return; // Hide already packed orders
+
+                const card = document.createElement('div');
+                card.className = 'order-card';
+                
+                // Split order items by commas or "and" to create the list
+                const items = order.itemList.split(/,| and /).filter(i => i.trim().length > 0);
+
+                let itemsHTML = "";
+                items.forEach(item => {
+                    itemsHTML += `
+                        <div class="item-row">
+                            <input type="checkbox" class="checkbox">
+                            <span>${item.trim()}</span>
+                        </div>
+                    `;
+                });
+
+                card.innerHTML = `
+                    <div class="customer-header">
+                        <span class="status-badge">NEW ORDER</span>
+                        <strong>ORDER #${id.slice(-4)}</strong><br>
+                        <small>${new Date(order.timestamp).toLocaleTimeString()}</small>
                     </div>
-                    <small>${new Date(order.timestamp).toLocaleTimeString()}</small>
-                </div>
-                <div>
-                    ${order.status === 'NEW' ? 
-                        `<button class="btn-ready" onclick="window.markAsReady('${id}')">Pack All</button>` : 
-                        `<span>✅ Ready</span>`
-                    }
-                </div>
-            `;
-            container.appendChild(card);
+                    ${itemsHTML}
+                    <button class="btn-ready" onclick="window.markAsReady('${id}')">MARK AS PACKED ✅</button>
+                `;
+                container.appendChild(card);
+            });
         });
-    });
 
-    window.markAsReady = (id) => {
-        update(ref(db, `orders/${id}`), { status: 'READY' });
-    };
-</script>
+        window.markAsReady = (id) => {
+            update(ref(db, `orders/${id}`), { status: 'READY' });
+        };
+    </script>
 </body>
 </html>
