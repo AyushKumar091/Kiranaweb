@@ -23,91 +23,77 @@
         <button id="sendBtn" class="send-btn">🚀 HIT TO SEND ORDER</button>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
-        import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+    import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyBXNNub5WpC4iNLyltbCfOztlMFsqMQqUY",
-            authDomain: "kirana-4f9a2.firebaseapp.com",
-            databaseURL: "https://kirana-4f9a2-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "kirana-4f9a2",
-            storageBucket: "kirana-4f9a2.firebasestorage.app",
-            appId: "1:786377704874:web:efbafb4b8a08e0cf0c57d3"
-        };
+    const firebaseConfig = {
+        apiKey: "AIzaSyBXNNub5WpC4iNLyltbCfOztlMFsqMQqUY",
+        authDomain: "kirana-4f9a2.firebaseapp.com",
+        databaseURL: "https://kirana-4f9a2-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "kirana-4f9a2",
+        storageBucket: "kirana-4f9a2.firebasestorage.app",
+        appId: "1:786377704874:web:efbafb4b8a08e0cf0c57d3"
+    };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        const recognition = new SpeechRecognition();
-        
-        recognition.lang = 'hi-IN'; // Optimized for Hindi/English mix
-        recognition.interimResults = false;
-        recognition.maxAlternatives = 1;
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = 'hi-IN';
+    recognition.continuous = true; // KEEP LISTENING FOR THE FULL LIST
+    recognition.interimResults = true;
 
-        const micBtn = document.getElementById('micBtn');
-        const status = document.getElementById('status');
-        const preview = document.getElementById('preview');
-        const sendBtn = document.getElementById('sendBtn');
+    const micBtn = document.getElementById('micBtn');
+    const preview = document.getElementById('preview');
+    const sendBtn = document.getElementById('sendBtn');
+    const status = document.getElementById('status');
 
-        micBtn.onclick = () => {
-            try {
-                recognition.start();
-                micBtn.classList.add('recording');
-                status.innerText = "Listening... Speak now!";
-            } catch (e) {
-                recognition.stop();
-                micBtn.classList.remove('recording');
-                status.innerText = "Resetting mic... try again.";
-            }
-        };
+    let fullTranscript = "";
 
-        // NEW: Detection indicator
-        recognition.onsoundstart = () => {
-            status.innerText = "I hear you! Keep talking...";
-            status.style.color = "#28a745";
-        };
+    micBtn.onclick = () => {
+        if (micBtn.classList.contains('recording')) {
+            recognition.stop();
+        } else {
+            fullTranscript = ""; // Reset for new order
+            recognition.start();
+            micBtn.classList.add('recording');
+            status.innerText = "Listening... Speak your whole list!";
+        }
+    };
 
-        recognition.onresult = (event) => {
-            const text = event.results[0][0].transcript;
-            preview.innerText = text;
-            sendBtn.style.display = "block";
-            status.innerText = "Captured Successfully!";
-            status.style.color = "#666";
-            micBtn.classList.remove('recording');
-        };
-
-        recognition.onerror = (event) => {
-            micBtn.classList.remove('recording');
-            status.style.color = "#dc3545";
-            if (event.error === 'no-speech') {
-                status.innerText = "Error: No sound detected. Speak louder!";
-            } else if (event.error === 'network') {
-                status.innerText = "Network Error. Switch to Chrome/Edge.";
+    recognition.onresult = (event) => {
+        let interimTranscript = "";
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+                fullTranscript += event.results[i][0].transcript + ", ";
             } else {
-                status.innerText = "Error: " + event.error;
+                interimTranscript += event.results[i][0].transcript;
             }
-        };
+        }
+        // Show the user what is being recorded
+        preview.innerText = fullTranscript + interimTranscript;
+        sendBtn.style.display = "block";
+    };
 
-        recognition.onend = () => {
-            micBtn.classList.remove('recording');
-        };
+    recognition.onend = () => {
+        micBtn.classList.remove('recording');
+        status.innerText = "Mic Off. Review your list and Send!";
+    };
 
-        sendBtn.onclick = () => {
-            status.innerText = "Sending to shop...";
-            push(ref(db, 'orders'), {
-                items: preview.innerText,
-                status: 'NEW',
-                timestamp: Date.now()
-            }).then(() => {
-                alert("Order Sent to Gupta-Ji!");
-                location.reload();
-            }).catch((err) => {
-                alert("Database Error: Check your Firebase Rules.");
-            });
-        };
-    </script>
+    sendBtn.onclick = () => {
+        status.innerText = "Sending order...";
+        push(ref(db, 'orders'), {
+            customerName: "Customer-" + Math.floor(Math.random() * 1000), // Random ID
+            itemList: preview.innerText,
+            status: 'NEW',
+            timestamp: Date.now()
+        }).then(() => {
+            alert("Whole List Sent to Shop!");
+            location.reload();
+        });
+    };
+</script>
     <p style="margin-top:50px;"><a href="Owner.html" style="color:#ccc; text-decoration:none; font-size:10px;">Owner Login</a></p>
 </body>
 </html>

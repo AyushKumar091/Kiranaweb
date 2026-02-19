@@ -35,65 +35,46 @@
     <h1>📦 Live Kirana Orders</h1>
     <div id="orderList">Connecting to live database...</div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
-        import { getDatabase, ref, onValue, update, remove } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+<script type="module">
+    // ... (Keep your Firebase Config and Imports the same as before) ...
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyBXNNub5WpC4iNLyltbCfOztlMFsqMQqUY",
-            authDomain: "kirana-4f9a2.firebaseapp.com",
-            databaseURL: "https://kirana-4f9a2-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "kirana-4f9a2",
-            storageBucket: "kirana-4f9a2.firebasestorage.app",
-            appId: "1:786377704874:web:efbafb4b8a08e0cf0c57d3"
-        };
+    onValue(ref(db, 'orders'), (snapshot) => {
+        const orders = snapshot.val();
+        const container = document.getElementById('orderList');
+        container.innerHTML = orders ? '' : 'No orders yet.';
+        
+        const sortedKeys = Object.keys(orders || {}).reverse();
 
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-
-        // Listen for data in real-time
-        onValue(ref(db, 'orders'), (snapshot) => {
-            const orders = snapshot.val();
-            const container = document.getElementById('orderList');
-            container.innerHTML = orders ? '' : '<p style="text-align:center;">No orders yet. Waiting for customers...</p>';
+        sortedKeys.forEach(id => {
+            const order = orders[id];
+            const card = document.createElement('div');
+            card.className = `order-card ${order.status === 'READY' ? 'ready' : ''}`;
             
-            // Sort orders: Newest at the top
-            const sortedKeys = Object.keys(orders || {}).reverse();
+            // Format the list to look cleaner
+            const itemsDisplay = order.itemList.split(',').filter(i => i.trim() !== '').join('<br>• ');
 
-            sortedKeys.forEach(id => {
-                const order = orders[id];
-                const card = document.createElement('div');
-                card.className = `order-card ${order.status === 'READY' ? 'ready' : ''}`;
-                
-                card.innerHTML = `
-                    <div>
-                        <h3 style="margin:0;">${order.items}</h3>
-                        <p style="margin:5px 0; color:#666; font-size:12px;">
-                            ${new Date(order.timestamp).toLocaleTimeString()}
-                        </p>
+            card.innerHTML = `
+                <div style="flex:1;">
+                    <h4 style="margin:0; color:#007bff;">OrderID: ${id.slice(-5)}</h4>
+                    <div style="font-size:18px; margin:10px 0; line-height:1.5;">
+                        <strong>Items:</strong><br>• ${itemsDisplay}
                     </div>
-                    <div>
-                        ${order.status === 'NEW' ? 
-                            `<button class="btn-ready" onclick="window.markAsReady('${id}')">Pack Order</button>` : 
-                            `<span>✅ Packed</span>`
-                        }
-                        <button class="btn-ready btn-delete" onclick="window.deleteOrder('${id}')">🗑️</button>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
+                    <small>${new Date(order.timestamp).toLocaleTimeString()}</small>
+                </div>
+                <div>
+                    ${order.status === 'NEW' ? 
+                        `<button class="btn-ready" onclick="window.markAsReady('${id}')">Pack All</button>` : 
+                        `<span>✅ Ready</span>`
+                    }
+                </div>
+            `;
+            container.appendChild(card);
         });
+    });
 
-        // Functions to update database
-        window.markAsReady = (id) => {
-            update(ref(db, `orders/${id}`), { status: 'READY' });
-        };
-
-        window.deleteOrder = (id) => {
-            if(confirm("Clear this order?")) {
-                remove(ref(db, `orders/${id}`));
-            }
-        };
-    </script>
+    window.markAsReady = (id) => {
+        update(ref(db, `orders/${id}`), { status: 'READY' });
+    };
+</script>
 </body>
 </html>
