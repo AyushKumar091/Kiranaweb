@@ -1,89 +1,109 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Kirana - Packing Dashboard</title>
+    <title>Kirana - Owner Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body { font-family: 'Courier New', Courier, monospace; padding: 20px; background: #ddd; } /* Receipt-style font */
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #eef2f3; }
         .order-card { 
             background: white; 
-            padding: 25px; 
-            margin: 20px auto; 
+            padding: 20px; 
+            margin: 15px auto; 
             max-width: 500px;
-            border-radius: 2px; 
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-            position: relative;
+            border-radius: 12px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
+            border-left: 10px solid #ffc107; 
         }
-        /* Jagged bottom effect like a real receipt */
-        .order-card::after {
-            content: ""; position: absolute; bottom: -10px; left: 0; width: 100%;
-            height: 10px; background: linear-gradient(-45deg, transparent 5px, white 5px), linear-gradient(45deg, transparent 5px, white 5px);
-            background-size: 10px 10px;
-        }
+        .order-header { border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; }
+        
+        /* This creates the vertical list effect */
+        .item-list { margin: 15px 0; }
         .item-row { 
-            display: flex; align-items: center; 
-            padding: 10px 0; border-bottom: 1px dashed #ccc; font-size: 20px; 
+            display: flex; 
+            align-items: center; 
+            padding: 8px 0; 
+            font-size: 19px; 
+            border-bottom: 1px dashed #f0f0f0; 
         }
-        .checkbox { width: 25px; height: 25px; margin-right: 15px; border: 2px solid #333; cursor: pointer; }
-        .customer-header { border-bottom: 2px solid #000; margin-bottom: 15px; padding-bottom: 10px; }
-        .status-badge { background: #000; color: #fff; padding: 5px 10px; font-size: 12px; float: right; }
-        .btn-ready { width: 100%; margin-top: 20px; padding: 15px; background: #28a745; color: white; border: none; font-weight: bold; cursor: pointer; }
-        @media print { .btn-ready, .checkbox { display: none; } } /* Hide buttons when printing for staff */
+        .item-row:last-child { border-bottom: none; }
+        .bullet { margin-right: 12px; color: #28a745; font-weight: bold; }
+
+        .btn-ready { 
+            width: 100%; background: #28a745; color: white; border: none; 
+            padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 16px;
+        }
     </style>
 </head>
 <body>
-    <h1 style="text-align:center;">📋 PACKING LISTS</h1>
-    <div id="orderList">Waiting for orders...</div>
+    <h1 style="text-align:center; color:#333;">📦 Live Orders</h1>
+    <div id="orderList">Connecting...</div>
 
-onValue(ref(db, 'orders'), (snapshot) => {
-    const orders = snapshot.val();
-    const container = document.getElementById('orderList');
-    container.innerHTML = orders ? '' : '<p style="text-align:center;">No Pending Orders.</p>';
-    
-    const sortedKeys = Object.keys(orders || {}).reverse();
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+        import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
 
-    sortedKeys.forEach(id => {
-        const order = orders[id];
-        if(order.status === 'READY') return;
+        const firebaseConfig = {
+            apiKey: "AIzaSyBXNNub5WpC4iNLyltbCfOztlMFsqMQqUY",
+            authDomain: "kirana-4f9a2.firebaseapp.com",
+            databaseURL: "https://kirana-4f9a2-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "kirana-4f9a2",
+            storageBucket: "kirana-4f9a2.firebasestorage.app",
+            appId: "1:786377704874:web:efbafb4b8a08e0cf0c57d3"
+        };
 
-        const card = document.createElement('div');
-        card.className = 'order-card';
-        
-        // SMART SPLIT: This regex splits the text whenever it sees a number 
-        // or separators like commas/and
-        const items = order.itemList.split(/(\d+)|,| and | aur /).filter(i => i && i.trim().length > 0);
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
 
-        let itemsHTML = "";
-        let currentItem = "";
+        onValue(ref(db, 'orders'), (snapshot) => {
+            const orders = snapshot.val();
+            const container = document.getElementById('orderList');
+            container.innerHTML = orders ? '' : '<p style="text-align:center;">No orders yet.</p>';
+            
+            const sortedKeys = Object.keys(orders || {}).reverse();
 
-        // Re-grouping numbers with their items for a clean look
-        items.forEach((part, index) => {
-            if (/^\d+$/.test(part)) { // If the part is a number
+            sortedKeys.forEach(id => {
+                const order = orders[id];
+                if(order.status === 'READY') return;
+
+                const card = document.createElement('div');
+                card.className = 'order-card';
+                
+                // FORCE VERTICAL LIST:
+                // Splits by numbers, commas, or common Hindi/English separators
+                const rawItems = order.itemList.split(/(\d+)|,| and | aur /).filter(i => i && i.trim().length > 0);
+                
+                let listHTML = "";
+                let currentItem = "";
+
+                rawItems.forEach((part) => {
+                    if (/^\d+$/.test(part)) { // If it's a number, it's a new item
+                        if (currentItem) {
+                            listHTML += `<div class="item-row"><span class="bullet">•</span><span>${currentItem.trim()}</span></div>`;
+                        }
+                        currentItem = part;
+                    } else {
+                        currentItem += " " + part;
+                    }
+                });
                 if (currentItem) {
-                    itemsHTML += `<div class="item-row"><input type="checkbox" class="checkbox"><span>${currentItem.trim()}</span></div>`;
+                    listHTML += `<div class="item-row"><span class="bullet">•</span><span>${currentItem.trim()}</span></div>`;
                 }
-                currentItem = part; // Start new item with this number
-            } else {
-                currentItem += " " + part;
-            }
-        });
-        
-        // Add the last item
-        if (currentItem) {
-            itemsHTML += `<div class="item-row"><input type="checkbox" class="checkbox"><span>${currentItem.trim()}</span></div>`;
-        }
 
-        card.innerHTML = `
-            <div class="customer-header">
-                <span class="status-badge">NEW ORDER</span>
-                <strong>ORDER #${id.slice(-4)}</strong><br>
-                <small>${new Date(order.timestamp).toLocaleTimeString()}</small>
-            </div>
-            ${itemsHTML}
-            <button class="btn-ready" onclick="window.markAsReady('${id}')">MARK AS PACKED ✅</button>
-        `;
-        container.appendChild(card);
-    });
-});
+                card.innerHTML = `
+                    <div class="order-header">
+                        <strong>Order #${id.slice(-4)}</strong>
+                        <small style="color:#888;">${new Date(order.timestamp).toLocaleTimeString()}</small>
+                    </div>
+                    <div class="item-list">${listHTML}</div>
+                    <button class="btn-ready" onclick="window.markAsReady('${id}')">MARK AS PACKED ✅</button>
+                `;
+                container.appendChild(card);
+            });
+        });
+
+        window.markAsReady = (id) => {
+            update(ref(db, `orders/${id}`), { status: 'READY' });
+        };
+    </script>
 </body>
 </html>
